@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// This foundation model gives migrations and the seed process a safe,
+// non-business table before authentication and commerce models are introduced.
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.VarChar(255)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+// Order status is deliberately separate from payment status: fulfillment can
+// progress independently of whether a mock or future real provider has paid.
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+// PaymentStatus is shared by Order.paymentStatus and Payment.status so the
+// order summary can expose the current payable state without exposing provider
+// internals.
+enum PaymentStatus {
+  PENDING
+  UNPAID
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_STATUS_UPDATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  PAYMENT_CANCELLED
+  SYSTEM
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String         @db.VarChar(120)
+  email         String         @unique @db.VarChar(191)
+  passwordHash  String         @db.VarChar(255)
+  role          Role           @default(CUSTOMER)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+  cart          Cart?
+  wishlist      Wishlist?
+  orders        Order[]
+  notifications Notification[]
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+// Notification dedupeKey makes retries idempotent while the recipient/read
+// indexes support the bell dropdown and paginated offline retrieval.
+model Notification {
+  id                 String           @id @default(cuid())
+  recipientId        String
+  title              String           @db.VarChar(160)
+  message            String           @db.VarChar(500)
+  type               NotificationType
+  relatedEntityType   String?          @db.VarChar(40)
+  relatedEntityId     String?          @db.VarChar(191)
+  dedupeKey           String           @unique @db.VarChar(255)
+  isRead             Boolean          @default(false)
+  readAt             DateTime?
+  createdAt           DateTime         @default(now())
+  recipient           User             @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead, createdAt])
+  @@index([recipientId, createdAt])
+  @@map("notifications")
+}
+
+// Product price is Decimal rather than a JavaScript number in persistence.
+// OrderItem repeats the display fields so historical orders survive catalogue
+// edits while retaining a restricted link to the original product.
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique @db.VarChar(100)
+  slug      String    @unique @db.VarChar(120)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(160)
+  slug        String   @unique @db.VarChar(180)
+  description String   @db.Text
+  sku         String   @unique @db.VarChar(80)
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  imageUrl    String?  @db.VarChar(500)
+  isActive    Boolean  @default(true)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  cartItems   CartItem[]
+  wishlistItems WishlistItem[]
+  orderItems   OrderItem[]
+
+  @@index([categoryId, isActive])
+  @@index([isActive, createdAt])
+  @@map("products")
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  orderNumber     String        @unique @db.VarChar(32)
+  userId          String
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  shippingCharge  Decimal       @db.Decimal(10, 2)
+  discount        Decimal       @default(0) @db.Decimal(10, 2)
+  total           Decimal       @db.Decimal(10, 2)
+  shippingName    String        @db.VarChar(120)
+  shippingPhone   String        @db.VarChar(40)
+  shippingLine1   String        @db.VarChar(191)
+  shippingLine2   String?       @db.VarChar(191)
+  shippingCity    String        @db.VarChar(100)
+  shippingState   String        @db.VarChar(100)
+  shippingPostalCode String     @db.VarChar(20)
+  shippingCountry String        @db.VarChar(100)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items           OrderItem[]
+  payment         Payment?
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  productId     String
+  productName   String   @db.VarChar(160)
+  productImageUrl String? @db.VarChar(500)
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  lineTotal     Decimal  @db.Decimal(10, 2)
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  orderId               String
+  provider              String        @db.VarChar(40)
+  providerPaymentReference String?     @unique @db.VarChar(191)
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @db.Char(3)
+  status                PaymentStatus @default(PENDING)
+  paymentMethod         String?       @db.VarChar(40)
+  failureReason         String?       @db.VarChar(255)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  order                 Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id        String         @id @default(cuid())
+  userId    String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     WishlistItem[]
+
+  @@map("wishlists")
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  productId  String
+  createdAt  DateTime @default(now())
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([wishlistId, productId])
+  @@index([productId])
+  @@map("wishlist_items")
+}
+
+model RefreshToken {
+  id                 String    @id @default(cuid())
+  userId             String
+  tokenHash          String    @unique @db.Char(64)
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  replacedByTokenId  String?   @db.VarChar(191)
+  createdAt          DateTime  @default(now())
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}

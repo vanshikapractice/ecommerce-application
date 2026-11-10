@@ -1,0 +1,12 @@
+{
+  "name": "@ecommerce/config",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "eslint src",
+    "typecheck": "tsc -b --pretty false",
+    "clean": "rimraf dist"
+  }
+}
