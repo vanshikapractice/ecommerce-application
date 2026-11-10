@@ -4,17 +4,18 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc -b",
+    "build": "prisma generate --schema=./prisma/schema.prisma && tsc -b",
+    "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.mjs --runInBand",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "prisma generate --schema=./prisma/schema.prisma && tsc -b --pretty false",
     "clean": "rimraf dist",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema=./prisma/schema.prisma",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@ecommerce/shared": "workspace:*",
@@ -44,6 +45,7 @@
     "tsx": "^4.19.2"
   },
   "prisma": {
+    "schema": "prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts"
   }
 }

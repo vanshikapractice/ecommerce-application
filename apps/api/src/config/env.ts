@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 // Resolve the backend .env from this file's location, not the shell's current
 // directory. This keeps filtered pnpm and root Turbo commands consistent.
-const backendEnvPath = resolve(dirname(fileURLToPath(import.meta.url)), ' ../../.env');
+const backendEnvPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env');
 dotenv.config({ path: backendEnvPath });
 
 const envSchema = z.object({
@@ -44,7 +44,7 @@ const parsedEnv = envSchema.superRefine((value, context) => {
 
 if (!parsedEnv.success) {
   const details = parsedEnv.error.issues
-    .map((issue) => `${issue.path.join('.') || 'environment'}: ${issue.message}`)
+    .map((issue: z.ZodIssue) => `${issue.path.join('.') || 'environment'}: ${issue.message}`)
     .join('; ');
   throw new Error(`API environment validation failed. ${details}`);
 }
