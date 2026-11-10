@@ -19,7 +19,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "tsconfig.tsbuildinfo"],
+      "cache": false
     },
     "dev": {
       "cache": false,
