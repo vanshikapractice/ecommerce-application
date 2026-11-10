@@ -3,7 +3,7 @@ services:
     name: ecommerce-api
     runtime: node
     buildCommand: pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm --filter @ecommerce/api start
+    startCommand: pnpm start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
