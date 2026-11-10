@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: ecommerce-api
+    runtime: node
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm --filter @ecommerce/api start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_URL
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: LOG_LEVEL
+        value: info
+      - key: PAYMENT_PROVIDER
+        value: mock
+      - key: PAYMENT_CURRENCY
+        value: INR

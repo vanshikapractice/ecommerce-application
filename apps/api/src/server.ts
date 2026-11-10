@@ -3,7 +3,7 @@ import { env } from './config/env.js';
 import { prisma } from './database/prisma.js';
 import { attachNotificationGateway } from './modules/notifications/notification.gateway.js';
 
-const server = app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, '0.0.0.0', () => {
   console.log(`API listening on http://localhost:${env.PORT}`);
 });
 attachNotificationGateway(server);
