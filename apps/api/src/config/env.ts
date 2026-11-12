@@ -8,6 +8,13 @@ import { z } from 'zod';
 const backendEnvPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env');
 dotenv.config({ path: backendEnvPath });
 
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value !== 'string') return value;
+  if (value.toLowerCase() === 'true') return true;
+  if (value.toLowerCase() === 'false') return false;
+  return value;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -26,7 +33,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRY_DAYS: z.coerce.number().int().positive().default(30),
   PAYMENT_PROVIDER: z.enum(['mock']).default('mock'),
   PAYMENT_CURRENCY: z.string().length(3).transform((value) => value.toUpperCase()).default('INR'),
-  COOKIE_SECURE: z.coerce.boolean().default(false),
+  COOKIE_SECURE: booleanFromEnv.default(false),
   SEED_ADMIN_NAME: z.string().min(2).optional(),
   SEED_ADMIN_EMAIL: z.string().email().optional(),
   SEED_ADMIN_PASSWORD: z.string().min(12).optional(),
