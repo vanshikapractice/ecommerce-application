@@ -13,7 +13,7 @@ import {
 
 export const authRouter: RouterType = Router();
 
-authRouter.post('/register', authRateLimit, validate(registerSchema), authController.register);
+authRouter.post('/register', authRateLimit, validate(registerSchema), authController.register); 
 authRouter.post('/login', authRateLimit, validate(loginSchema), authController.login);
 authRouter.post('/refresh', authRateLimit, validate(emptyRequestSchema), authController.refresh);
 authRouter.post('/logout', validate(emptyRequestSchema), authController.logout);
